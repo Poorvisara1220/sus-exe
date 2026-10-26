@@ -167,6 +167,56 @@ with right:
     else:
         st.info("No cross-account links at this threshold and time window.")
 
+st.subheader("🕵️ Account investigation summary")
+
+if len(pairs):
+    account_rows = []
+
+    for account in sorted(set(pairs["account_a"]) | set(pairs["account_b"])):
+        related = pairs[
+            (pairs["account_a"] == account) |
+            (pairs["account_b"] == account)
+        ]
+
+        timed = related[related["within_time_window"]]
+        other_accounts = set(related["account_a"]) | set(related["account_b"])
+        other_accounts.discard(account)
+
+        account_rows.append({
+            "Account": account,
+            "Similar post pairs": len(related),
+            "Timed matches": len(timed),
+            "Connected accounts": len(other_accounts),
+            "Max similarity": round(related["similarity"].max(), 3),
+            "Review status": (
+                "Needs investigation"
+                if len(timed) > 0
+                else "Review context"
+            )
+        })
+
+    account_summary = pd.DataFrame(account_rows).sort_values(
+        ["Timed matches", "Similar post pairs", "Max similarity"],
+        ascending=False
+    )
+
+    st.dataframe(
+        account_summary,
+        use_container_width=True,
+        hide_index=True
+    )
+
+    st.download_button(
+        "Download account investigation report",
+        account_summary.to_csv(index=False).encode("utf-8"),
+        "sus_exe_account_report.csv",
+        "text/csv"
+    )
+else:
+    st.info(
+        "No account-level matches found. "
+        "Try lowering the similarity threshold to explore more pairs."
+    )
 st.subheader("🔎 Similar-post evidence")
 if len(pairs):
     st.dataframe(pairs.sort_values(["within_time_window","similarity"], ascending=False), use_container_width=True, hide_index=True)
